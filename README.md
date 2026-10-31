@@ -1,5 +1,7 @@
 # Tamil typography dataset and Tesseract fine-tuning
 
+**Detailed workflow:** [Adding datasets, training, model export and inference examples](docs/DATASET_TRAINING_INFERENCE.md).
+
 A native-Windows Python CLI that downloads licensed fonts, renders synthetic
 Tamil text lines, generates Tesseract training files, fine-tunes the floating-point
 Tamil LSTM model, selects a checkpoint using validation BCER, and prints baseline
@@ -304,6 +306,19 @@ model is ready for real historical documents**. Retain modern and real historica
 holdouts before adopting a model. Results can differ with assets and tool versions.
 
 ## Using the exported model
+
+The [inference example script](inference.py) selects a model explicitly, prints
+Unicode Tamil, and can save UTF-8 output:
+
+```powershell
+$image = (Get-ChildItem runs\demo\dataset\test -Filter '*.png' | Select-Object -First 1).FullName
+python inference.py --image $image `
+  --model runs\demo\model\tam_historical.traineddata `
+  --psm 7 --output runs\inference\demo-line.txt
+```
+
+Choose a new output filename if it already exists. For page/block modes, Python API
+usage and real-data versioning, see the [detailed guide](docs/DATASET_TRAINING_INFERENCE.md).
 
 No system model is overwritten. Point Tesseract to the output directory:
 
