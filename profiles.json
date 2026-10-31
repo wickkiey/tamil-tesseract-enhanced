@@ -1,0 +1,8 @@
+[
+  {"name": "modern_sans", "font": "assets/fonts/NotoSansTamil.ttf", "features": [], "category": "modern"},
+  {"name": "modern_serif", "font": "assets/fonts/NotoSerifTamil.ttf", "features": [], "category": "modern"},
+  {"name": "korkai_modern", "font": "assets/fonts/Korkai-Regular.ttf", "features": ["-ss01", "-ss02", "-ss03"], "category": "modern"},
+  {"name": "korkai_historical", "font": "assets/fonts/Korkai-Regular.ttf", "features": ["ss01", "ss02", "ss03"], "category": "historical"},
+  {"name": "vaagai_archival", "font": "assets/fonts/Vaagai-Regular.ttf", "features": ["-ss01", "-ss02"], "category": "archival"},
+  {"name": "vaagai_alternates", "font": "assets/fonts/Vaagai-Regular.ttf", "features": ["ss01", "ss02"], "category": "historical"}
+]
