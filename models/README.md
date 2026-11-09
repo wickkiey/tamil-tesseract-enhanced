@@ -1,0 +1,51 @@
+# Model releases
+
+This directory holds shareable Tesseract LSTM model releases. Only exported
+`.traineddata` files and their metadata are tracked; training checkpoints,
+`.lstm` components, sample lists and logs stay under `runs/` (gitignored).
+
+## Layout
+
+```text
+models\
+  README.md
+  approved-v1\
+    tam_historical.traineddata
+    manifest.json
+  candidate-v2\                (future)
+    tam_historical_v2.traineddata
+    manifest.json
+```
+
+- `approved-v1` is the currently approved model for rollback.
+- Give each new release its own versioned directory; never overwrite an approved
+  model in place.
+- Keep `manifest.json` next to the model. It records the model hash, dataset
+  version, training settings, metrics and licenses.
+
+## Using a model
+
+`--tessdata-dir` takes the model's **parent folder** and `-l` takes the filename
+**stem**:
+
+```powershell
+python inference.py --image line.png `
+  --model models\approved-v1\tam_historical.traineddata --psm 7
+
+tesseract line.png stdout --tessdata-dir models\approved-v1 `
+  -l tam_historical --oem 1 --psm 7
+```
+
+Verify a downloaded model before using it:
+
+```powershell
+(Get-FileHash models\approved-v1\tam_historical.traineddata -Algorithm SHA256).Hash.ToLower()
+# Must match manifest.json -> sha256
+```
+
+## Status of approved-v1
+
+`approved-v1` is an exported **smoke** model trained on the 180-pair synthetic
+demo dataset for 50 iterations. It proves the pipeline works; it is not
+certified for real historical documents. See `manifest.json` for metrics and
+`docs/DATASET_TRAINING_INFERENCE.md` for the full release checklist.

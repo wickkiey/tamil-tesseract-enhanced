@@ -3,3 +3,11 @@ __pycache__/
 assets/
 runs/
 *.egg-info/
+
+# Model releases are tracked (models/**/*.traineddata + manifest.json);
+# keep training-only artifacts out of them.
+models/**/*.checkpoint
+models/**/*.lstm
+models/**/*.lstm-*
+models/**/*.list
+models/**/*.log

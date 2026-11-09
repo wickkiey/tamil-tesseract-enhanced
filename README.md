@@ -127,12 +127,18 @@ training split with the other's test split.
 
 ### Local Git repository
 
-Source code, tests, profiles, training config, dependency requirements and this
-documentation are tracked. `assets\`, `runs\`, virtual environments and Python
-caches are ignored. Generated images, transcriptions and models remain available
-locally but are not stored in Git. Use the setup/generation commands to recreate
-them, and preserve asset provenance and hashes for exact reproducibility.
-No remote repository or upload is configured by this workflow.
+Source code, tests, profiles, training config, dependency requirements, this
+documentation and shareable model releases under `models\` are tracked. `assets\`,
+`runs\`, virtual environments and Python caches are ignored. Generated images,
+transcriptions and training checkpoints remain available locally but are not
+stored in Git. Use the setup/generation commands to recreate them, and preserve
+asset provenance and hashes for exact reproducibility.
+
+Committed model releases follow the layout documented in [models/README.md](models/README.md).
+Each release directory contains the exported `.traineddata` plus a `manifest.json`
+with its hash, dataset version, training settings and metrics. `models\approved-v1`
+is the current smoke model; keep it for rollback and add future releases alongside
+it as `models\candidate-v2`, and so on.
 
 ### Corpus and augmentation
 
@@ -307,23 +313,28 @@ holdouts before adopting a model. Results can differ with assets and tool versio
 
 ## Using the exported model
 
+Committed releases live under `models\` (see [models/README.md](models/README.md)).
+For example, the current smoke release is
+`models\approved-v1\tam_historical.traineddata` with its metadata in
+`models\approved-v1\manifest.json`.
+
 The [inference example script](inference.py) selects a model explicitly, prints
 Unicode Tamil, and can save UTF-8 output:
 
 ```powershell
 $image = (Get-ChildItem runs\demo\dataset\test -Filter '*.png' | Select-Object -First 1).FullName
 python inference.py --image $image `
-  --model runs\demo\model\tam_historical.traineddata `
+  --model models\approved-v1\tam_historical.traineddata `
   --psm 7 --output runs\inference\demo-line.txt
 ```
 
 Choose a new output filename if it already exists. For page/block modes, Python API
 usage and real-data versioning, see the [detailed guide](docs/DATASET_TRAINING_INFERENCE.md).
 
-No system model is overwritten. Point Tesseract to the output directory:
+No system model is overwritten. Point Tesseract to the release directory:
 
 ```powershell
-tesseract line.png stdout --tessdata-dir runs\model02 -l tam_historical --oem 1 --psm 7
+tesseract line.png stdout --tessdata-dir models\approved-v1 -l tam_historical --oem 1 --psm 7
 ```
 
 Use a suitable page segmentation mode for full-page input, and evaluate that

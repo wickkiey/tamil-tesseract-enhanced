@@ -17,12 +17,27 @@ Adjust absolute paths if you move the project.
 | `assets\provenance.json` | Download URLs, licenses and hashes |
 | `runs\demo\dataset` | Original 180-pair smoke dataset |
 | `runs\demo\model\tam_historical.traineddata` | Exported smoke model, not a production-certified model |
+| `models\approved-v1` | Tracked, shareable release of the smoke model plus `manifest.json` |
 | `runs\demo\evaluation` | Original smoke metrics and predictions |
 | `runs\expanded\dataset` | 18,000 pairs; generated but not yet trained |
 
-The local Git repository tracks source, tests and documentation. Assets, datasets,
-models and Python caches are ignored, not deleted. Back up these ignored files
-separately if you need to preserve an exact experiment. No remote upload is required.
+The local Git repository tracks source, tests, documentation and shareable model
+releases under `models\`. Assets, datasets, training checkpoints, logs and Python
+caches are ignored, not deleted. Back up these ignored files separately if you need
+to preserve an exact experiment.
+
+Tracked model releases use this layout:
+
+```text
+models\
+  README.md
+  approved-v1\
+    tam_historical.traineddata
+    manifest.json
+```
+
+Only exported `.traineddata` files and their `manifest.json` belong in `models\`;
+training checkpoints and `.lstm` components stay under `runs\`.
 
 The original and expanded experiments can share text. Never train on one dataset's
 training split and claim independent accuracy on another dataset's test split
@@ -470,26 +485,29 @@ For reliable UTF-8 output on older PowerShell, prefer the Python script's
 
 ## 9. Deploy and retain a rollback model
 
-For inference, install Tesseract and copy the selected `.traineddata` to a model
-directory. You do not need training checkpoints or `.lstmf` files at runtime.
-The example Python script needs this project's helpers and Python requirements.
-Preserve licenses and training provenance separately with the model release.
+For inference, install Tesseract and use the release directory directly. You do
+not need training checkpoints or `.lstmf` files at runtime. The example Python
+script needs this project's helpers and Python requirements. Preserve licenses,
+`manifest.json` and training provenance with the model release.
 
-Example model layout:
+Current committed layout (see [models/README.md](../models/README.md)):
 
 ```text
 models\
+  README.md
   approved-v1\
-    tam_historical_v1.traineddata
-  candidate-v2\
+    tam_historical.traineddata
+    manifest.json
+  candidate-v2\                (future)
     tam_historical_v2.traineddata
+    manifest.json
 ```
 
 Select models explicitly by path. Keep the approved version available for
-rollback. Avoid changing the system's original Tamil model. Track the model hash,
-dataset version, validation/test metrics, and intended document families with
-each release. For mixed English/Tamil, this script selects only one model;
-multilanguage inference requires the corresponding additional models and a
+rollback. Avoid changing the system's original Tamil model. Each `manifest.json`
+tracks the model hash, dataset version, validation/test metrics, licenses and
+intended document families. For mixed English/Tamil, this script selects only one
+model; multilanguage inference requires the corresponding additional models and a
 separately tested configuration.
 
 ## 10. Troubleshooting

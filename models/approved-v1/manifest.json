@@ -1,0 +1,57 @@
+{
+  "release": "approved-v1",
+  "model_file": "tam_historical.traineddata",
+  "language": "tam_historical",
+  "sha256": "0f79f56753ec82641c4f7fd108df466d63a421a2de087d363180b14b826600f1",
+  "size_bytes": 6023201,
+  "status": "smoke",
+  "intended_use": "Smoke-test artifact from the synthetic demo dataset. Not production-certified for real historical documents.",
+  "base_model": {
+    "name": "tam",
+    "source": "tesseract-ocr/tessdata_best",
+    "sha256": "4b9ce85987f629dd31eaf87443a1646452a43cdf91fcf05e017382ad595dcb9e",
+    "license": "Apache 2.0"
+  },
+  "dataset": {
+    "name": "demo",
+    "manifest_sha256": "a09ac87d31357388e6c00bc6e740398a47b28edb3e34d7a8a8b6596243783182",
+    "pairs": 180,
+    "splits": {
+      "train": 144,
+      "val": 18,
+      "test": 18
+    },
+    "kind": "synthetic",
+    "contains_real_test_data": false
+  },
+  "training": {
+    "iterations": 50,
+    "learning_rate": 0.0001,
+    "validation_bcer_percent": 25.764,
+    "selection": "Minimum lstmeval BCER on validation lines; ties use filename",
+    "tesseract_version": "5.5.0.20241111",
+    "test_used_for_training": false
+  },
+  "evaluation": {
+    "split": "test",
+    "scope": "Line recognition with OEM 1 / PSM 7; not full-page segmentation accuracy",
+    "baseline": {
+      "cer": 0.1393,
+      "character_accuracy": 0.8607,
+      "wer": 0.5702,
+      "grapheme_accuracy": 0.7879,
+      "exact_line_accuracy": 0.0
+    },
+    "finetuned": {
+      "cer": 0.1281,
+      "character_accuracy": 0.8719,
+      "wer": 0.5263,
+      "grapheme_accuracy": 0.8125,
+      "exact_line_accuracy": 0.0
+    }
+  },
+  "licenses": {
+    "base_model": "Apache 2.0",
+    "training_fonts": "SIL OFL 1.1"
+  }
+}
