@@ -314,8 +314,9 @@ holdouts before adopting a model. Results can differ with assets and tool versio
 ## Using the exported model
 
 Committed releases live under `models\` (see [models/README.md](models/README.md)).
-For example, the current smoke release is
-`models\approved-v1\tam_historical.traineddata` with its metadata in
+For a step-by-step guide to running the latest committed model on new images, see
+[inference/README.md](inference/README.md). For example, the current smoke release
+is `models\approved-v1\tam_historical.traineddata` with its metadata in
 `models\approved-v1\manifest.json`.
 
 The [inference example script](inference.py) selects a model explicitly, prints
