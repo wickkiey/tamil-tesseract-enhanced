@@ -319,18 +319,20 @@ For a step-by-step guide to running the latest committed model on new images, se
 is `models\approved-v1\tam_historical.traineddata` with its metadata in
 `models\approved-v1\manifest.json`.
 
-The [inference example script](inference.py) selects a model explicitly, prints
-Unicode Tamil, and can save UTF-8 output:
+The [inference package](inference/) can download the pinned model, select it
+explicitly, print Unicode Tamil, and save UTF-8 output:
 
 ```powershell
+python -m inference download
 $image = (Get-ChildItem runs\demo\dataset\test -Filter '*.png' | Select-Object -First 1).FullName
-python inference.py --image $image `
-  --model models\approved-v1\tam_historical.traineddata `
-  --psm 7 --output runs\inference\demo-line.txt
+python -m inference run --image $image --psm 7 --output runs\inference\demo-line.txt
 ```
 
-Choose a new output filename if it already exists. For page/block modes, Python API
-usage and real-data versioning, see the [detailed guide](docs/DATASET_TRAINING_INFERENCE.md).
+`download` is optional when you already have `models\approved-v1\tam_historical.traineddata`.
+Use `--model <path>` to select a different release. Choose a new output filename if
+it already exists. For page/block modes, Python API usage and real-data versioning,
+see the [detailed guide](docs/DATASET_TRAINING_INFERENCE.md) and the
+[inference guide](inference/README.md).
 
 No system model is overwritten. Point Tesseract to the release directory:
 

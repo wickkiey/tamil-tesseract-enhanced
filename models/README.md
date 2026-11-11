@@ -29,12 +29,16 @@ models\
 **stem**:
 
 ```powershell
-python inference.py --image line.png `
-  --model models\approved-v1\tam_historical.traineddata --psm 7
+python -m inference download
+python -m inference run --image line.png --psm 7
 
 tesseract line.png stdout --tessdata-dir models\approved-v1 `
   -l tam_historical --oem 1 --psm 7
 ```
+
+`python -m inference download` fetches the pinned release, verifies its SHA-256 and
+caches it here. `run` defaults to `models\approved-v1\tam_historical.traineddata`;
+pass `--model` to select another release.
 
 Verify a downloaded model before using it:
 

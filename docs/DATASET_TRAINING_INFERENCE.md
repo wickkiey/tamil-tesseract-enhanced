@@ -10,7 +10,7 @@ Adjust absolute paths if you move the project.
 | Artifact | Purpose |
 |---|---|
 | [tamil_ocr.py](../tamil_ocr.py) | Asset setup, dataset generation, real-data import, training, evaluation |
-| [inference.py](../inference.py) | Run your selected model on a new image |
+| [inference/](../inference/) | Download the pinned model and run it on a new image |
 | [profiles.json](../profiles.json) | Fonts, OpenType features and typography categories |
 | `assets\fonts` | Downloaded fonts and licenses |
 | `assets\models\tam.traineddata` | Original floating-point Tamil baseline |
@@ -389,28 +389,35 @@ metric, not the same quantity as the reported Unicode CER.
 
 ## 8. Run inference on a new image
 
-### Single text line with the provided example script
+### Single text line with the inference package
 
-This example uses a generated test line and the existing exported demo model:
+The package is pinned to the currently approved release. Download and verify it
+first if `models\approved-v1\tam_historical.traineddata` is missing:
+
+```powershell
+.\.venv\Scripts\python.exe -m inference download
+```
+
+This example uses a generated test line:
 
 ```powershell
 $image = (Get-ChildItem runs\demo\dataset\test -Filter '*.png' | Select-Object -First 1).FullName
-.\.venv\Scripts\python.exe inference.py `
+.\.venv\Scripts\python.exe -m inference run `
   --image $image `
-  --model runs\demo\model\tam_historical.traineddata `
   --psm 7 --output runs\inference\demo-line.txt
 ```
 
-For a real new line, replace `--image` and select your improved model:
+For a real new line, replace `--image` and pass `--model` to select another
+release:
 
 ```powershell
-.\.venv\Scripts\python.exe inference.py `
+.\.venv\Scripts\python.exe -m inference run `
   --image assets\incoming\line001.png `
-  --model runs\mixed-v1\model\tam_historical_v1.traineddata `
+  --model models\approved-v1\tam_historical.traineddata `
   --psm 7 --output runs\inference\line001.txt
 ```
 
-The script:
+The command:
 
 - Uses the model's parent folder as `--tessdata-dir`.
 - Uses its filename stem as the language/model identifier.
@@ -438,13 +445,12 @@ to the sensitivity of your documents.
 For a page:
 
 ```powershell
-.\.venv\Scripts\python.exe inference.py `
+.\.venv\Scripts\python.exe -m inference run `
   --image assets\incoming\page001.png `
-  --model runs\mixed-v1\model\tam_historical_v1.traineddata `
   --psm 3 --output runs\inference\page001.txt
 ```
 
-The script does not deskew, crop, convert PDFs, correct spelling or detect
+The command does not deskew, crop, convert PDFs, correct spelling or detect
 orientation. Convert PDFs to images separately. Rotate pages upright, preserve
 small marks and choose PSM according to the layout. Multi-column pages may need
 separate region/line extraction.
@@ -459,7 +465,7 @@ from inference import recognize
 
 text = recognize(
     image=Path(r"assets\incoming\line001.png"),
-    model=Path(r"runs\mixed-v1\model\tam_historical_v1.traineddata"),
+    model=Path(r"models\approved-v1\tam_historical.traineddata"),
     psm=7,
     log=Path(r"runs\inference\python-api.log"),
 )
@@ -474,21 +480,21 @@ process per call. A batch application can iterate over images with this function
 
 ```powershell
 tesseract assets\incoming\line001.png stdout `
-  --tessdata-dir runs\mixed-v1\model `
-  -l tam_historical_v1 --oem 1 --psm 7
+  --tessdata-dir models\approved-v1 `
+  -l tam_historical --oem 1 --psm 7
 ```
 
 The `-l` value must match the `.traineddata` filename without its extension.
 Do not pass the full model file to `--tessdata-dir`; that parameter takes a folder.
-For reliable UTF-8 output on older PowerShell, prefer the Python script's
+For reliable UTF-8 output on older PowerShell, prefer the Python package's
 `--output` rather than `>` redirection.
 
 ## 9. Deploy and retain a rollback model
 
 For inference, install Tesseract and use the release directory directly. You do
-not need training checkpoints or `.lstmf` files at runtime. The example Python
-script needs this project's helpers and Python requirements. Preserve licenses,
-`manifest.json` and training provenance with the model release.
+not need training checkpoints or `.lstmf` files at runtime. The inference package
+is self-contained (standard library only) plus the Tesseract binary. Preserve
+licenses, `manifest.json` and training provenance with the model release.
 
 Current committed layout (see [models/README.md](../models/README.md)):
 
