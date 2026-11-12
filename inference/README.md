@@ -3,7 +3,7 @@
 All inference code lives in this folder:
 
 ```text
-inference\
+inference/
   __init__.py      # public API: recognize, download_model, ensure_model
   __main__.py      # python -m inference
   cli.py           # download / run subcommands
@@ -26,9 +26,9 @@ MODEL_SHA256 = "0f79f56753ec82641c4f7fd108df466d63a421a2de087d363180b14b826600f1
 DEFAULT_MODEL_PATH = PROJECT_ROOT / "models" / DEFAULT_RELEASE / MODEL_FILENAME
 ```
 
-The matching release in the repository is `models\approved-v1`, with its hash,
+The matching release in the repository is `models/approved-v1`, with its hash,
 dataset version, training settings, metrics and licenses in
-`models\approved-v1\manifest.json`.
+`models/approved-v1/manifest.json`.
 
 > `approved-v1` is a **smoke** model trained on the 180-pair synthetic demo
 > dataset for 50 iterations. It proves the pipeline works; it is not certified
@@ -40,27 +40,27 @@ dataset version, training settings, metrics and licenses in
 - Python 3.10+. The inference package uses only the standard library, but the
   repository's `requirements.txt` also covers the training pipeline.
 
-```powershell
+```bash
 python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt
-# If Tesseract is not already on PATH, adapt this to your installation:
-$env:Path = 'D:\Program Files\Tesseract-OCR;' + $env:Path
+# activate the virtual environment, then:
+python -m pip install -r requirements.txt
+# Tesseract 5 with training tools must be on PATH
 
 tesseract --version
 ```
 
 ## 3. Download and verify the model
 
-```powershell
-.\.venv\Scripts\python.exe -m inference download
+```bash
+python -m inference download
 ```
 
 This downloads the pinned `.traineddata` to
-`models\approved-v1\tam_historical.traineddata`, verifies its SHA-256 and refuses
+`models/approved-v1/tam_historical.traineddata`, verifies its SHA-256 and refuses
 to keep a mismatched file. Options:
 
-```powershell
-python -m inference download --dest path\to\models --force
+```bash
+python -m inference download --dest path/to/models --force
 ```
 
 - `--dest` sets the destination `.traineddata` path.
@@ -68,18 +68,18 @@ python -m inference download --dest path\to\models --force
 
 Manual verification:
 
-```powershell
-(Get-FileHash models\approved-v1\tam_historical.traineddata -Algorithm SHA256).Hash.ToLower()
+```bash
+python -c "import hashlib,sys; print(hashlib.sha256(open(sys.argv[1],'rb').read()).hexdigest())" models/approved-v1/tam_historical.traineddata
 # expected: 0f79f56753ec82641c4f7fd108df466d63a421a2de087d363180b14b826600f1
 ```
 
 ## 4. Run inference on a line image
 
-```powershell
-.\.venv\Scripts\python.exe -m inference run `
-  --image path\to\line001.png `
-  --psm 7 `
-  --output out\line001.txt
+```bash
+python -m inference run \
+  --image path/to/line001.png \
+  --psm 7 \
+  --output out/line001.txt
 ```
 
 - `--model` defaults to the pinned release; pass it to use another `.traineddata`.
@@ -100,9 +100,9 @@ Manual verification:
 
 For a full page:
 
-```powershell
-.\.venv\Scripts\python.exe -m inference run `
-  --image path\to\page001.png --psm 3 --output out\page001.txt
+```bash
+python -m inference run \
+  --image path/to/page001.png --psm 3 --output out/page001.txt
 ```
 
 The package does not deskew, crop, convert PDFs, correct spelling or detect
@@ -117,10 +117,10 @@ from inference import download_model, recognize
 model = download_model()  # downloads/verifies the pinned release if needed
 
 text = recognize(
-    image=Path(r"path\to\line001.png"),
+    image=Path(r"path/to/line001.png"),
     model=model,
     psm=7,
-    log=Path(r"runs\inference\python-api.log"),
+    log=Path(r"runs/inference/python-api.log"),
 )
 print(text)
 ```
@@ -134,14 +134,14 @@ process per call, so a batch job can simply loop over images.
 Point `--tessdata-dir` at the release **folder**, and pass the filename **stem**
 to `-l`:
 
-```powershell
-tesseract path\to\line001.png stdout `
-  --tessdata-dir models\approved-v1 `
+```bash
+tesseract path/to/line001.png stdout \
+  --tessdata-dir models/approved-v1 \
   -l tam_historical --oem 1 --psm 7
 ```
 
 Do not pass the full `.traineddata` file to `--tessdata-dir`; it takes a folder.
-For reliable UTF-8 output on older PowerShell, prefer `-m inference run --output`
+For reliable UTF-8 output on older PowerShell, prefer `-m inference run --output\
 over `>` redirection.
 
 ## 8. Troubleshooting

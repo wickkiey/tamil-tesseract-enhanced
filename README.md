@@ -7,9 +7,24 @@ Tamil text lines, generates Tesseract training files, fine-tunes the floating-po
 Tamil LSTM model, selects a checkpoint using validation BCER, and prints baseline
 versus fine-tuned accuracy on an untouched test set.
 
+## Code layout and configuration
+
+All pipeline code is in [`train/`](train/), with one module per stage and a single
+config file, [`train/config.toml`](train/config.toml). **See
+[train/README.md](train/README.md)** for a short run section for each stage: setup,
+generate data, import real data, train and evaluate.
+
+```bash
+python -m train generate     # reads train/config.toml
+python -m train train
+python -m train evaluate     # saves accuracy to models/<name>/
+```
+
+Command-line flags override the config (`python -m train generate --lines 500`).
+
 ## What the dataset covers
 
-Six rendering profiles are provided in [profiles.json](profiles.json):
+Six rendering profiles are provided in [profiles.json](train/profiles.json):
 
 | Profile | Typeface and shaping | Purpose |
 |---|---|---|
@@ -46,23 +61,23 @@ charset expansion or legacy-font encoding conversion.
 ## Requirements
 
 - Python 3.10+.
-- Tesseract 5 with `tesseract`, `combine_tessdata`, `lstmtraining`, and `lstmeval`
+- Tesseract 5 with `tesseract`, `combine_tessdata`, `lstmtraining`, and `lstmeval\
   on PATH.
 - Pillow with RAQM/HarfBuzz support. The pipeline fails explicitly if shaping is
   unavailable; it never silently falls back to drawing unshaped Tamil.
 - Internet access for initial asset downloads only. Images and transcriptions
   remain local and are not uploaded.
 
-PowerShell, from this directory:
+From the repository root:
 
-```powershell
+```bash
 python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt
-# If Tesseract is not already on PATH, adapt this to your installation:
-$env:Path = 'D:\Program Files\Tesseract-OCR;' + $env:Path
+# activate the virtual environment, then:
+python -m pip install -r requirements.txt
+# Tesseract 5 with training tools must be on PATH
 ```
 
-Downloads include font/model license files and `assets\provenance.json` with URLs
+Downloads include font/model license files and `assets/provenance.json` with URLs
 and SHA-256 hashes. Existing downloads are reused. Upstream URLs can change;
 preserve your assets and provenance for reproducibility.
 
@@ -70,21 +85,21 @@ preserve your assets and provenance for reproducibility.
 
 Small smoke test:
 
-```powershell
-.\.venv\Scripts\python.exe tamil_ocr.py run `
-  --output runs\my-smoke `
+```bash
+python -m train run \
+  --output runs/my-smoke \
   --lines 30 --variants 1 --iterations 50
 ```
 
 This produces 180 image/text pairs: 144 training, 18 validation, 18 test.
-`--lines` counts unique transcriptions; multiply by six profiles and `--variants`
+`--lines` counts unique transcriptions; multiply by six profiles and `--variants\
 to get the number of images.
 
 Larger first experiment:
 
-```powershell
-.\.venv\Scripts\python.exe tamil_ocr.py run `
-  --output runs\experiment01 `
+```bash
+python -m train run \
+  --output runs/experiment01 \
   --lines 1000 --variants 3 --iterations 5000
 ```
 
@@ -97,27 +112,27 @@ avoid mixing datasets, checkpoints or metrics from different experiments.
 
 ### Expanded local dataset
 
-The generated dataset at `runs\expanded\dataset` contains **18,000 image/text
+The generated dataset at `runs/expanded/dataset` contains **18,000 image/text
 pairs**: 14,400 training, 1,800 validation and 1,800 test. It uses 1,000 unique
 transcriptions, all six profiles, and three variants per profile (seed 42).
-The original 180-pair dataset remains at `runs\demo\dataset`.
+The original 180-pair dataset remains at `runs/demo/dataset`.
 
 Reproduce the expanded data without training:
 
-```powershell
-python tamil_ocr.py setup
-python tamil_ocr.py generate `
-  --dataset runs\expanded-new\dataset --lines 1000 --variants 3 --seed 42
+```bash
+python -m train setup
+python -m train generate \
+  --dataset runs/expanded-new/dataset --lines 1000 --variants 3 --seed 42
 ```
 
 Train and evaluate the expanded data when ready:
 
-```powershell
-python tamil_ocr.py train `
-  --dataset runs\expanded\dataset --output runs\expanded\model --iterations 5000
-python tamil_ocr.py evaluate `
-  --dataset runs\expanded\dataset --model runs\expanded\model\tam_historical.traineddata `
-  --output runs\expanded\evaluation
+```bash
+python -m train train \
+  --dataset runs/expanded/dataset --output runs/expanded/model --iterations 5000
+python -m train evaluate \
+  --dataset runs/expanded/dataset --model runs/expanded/model/tam_historical.traineddata \
+  --output runs/expanded/evaluation
 ```
 
 The expanded dataset has not been trained or evaluated yet; the smoke-run
@@ -135,10 +150,10 @@ stored in Git. Use the setup/generation commands to recreate them, and preserve
 asset provenance and hashes for exact reproducibility.
 
 Committed model releases follow the layout documented in [models/README.md](models/README.md).
-Each release directory contains the exported `.traineddata` plus a `manifest.json`
-with its hash, dataset version, training settings and metrics. `models\approved-v1`
+Each release directory contains the exported `.traineddata` plus a `manifest.json\
+with its hash, dataset version, training settings and metrics. `models/approved-v1\
 is the current smoke model; keep it for rollback and add future releases alongside
-it as `models\candidate-v2`, and so on.
+it as `models/candidate-v2`, and so on.
 
 ### Corpus and augmentation
 
@@ -154,14 +169,14 @@ Metrics separate diagnostic and ordinary text.
 
 For your own UTF-8 corpus, provide one text line per line:
 
-```powershell
-.\.venv\Scripts\python.exe tamil_ocr.py run `
-  --output runs\custom01 --corpus corpus.txt `
+```bash
+python -m train run \
+  --output runs/custom01 --corpus corpus.txt \
   --lines 2000 --variants 3 --iterations 5000
 ```
 
 Custom corpora are not modified with diagnostic lines. Check
-`dataset\generation.json` for target occurrence counts **by split**; an absent
+`dataset/generation.json` for target occurrence counts **by split**; an absent
 target is not measurable. The renderer refuses unsupported characters instead
 of using font fallback.
 
@@ -172,41 +187,41 @@ These are modest scan proxies, not simulations of all historical printing defect
 
 ## Individual stages
 
-```powershell
-.\.venv\Scripts\python.exe tamil_ocr.py setup
-.\.venv\Scripts\python.exe tamil_ocr.py generate `
-  --dataset runs\dataset01 --lines 100 --variants 2
-.\.venv\Scripts\python.exe tamil_ocr.py train `
-  --dataset runs\dataset01 --output runs\model01 `
+```bash
+python -m train setup
+python -m train generate \
+  --dataset runs/dataset01 --lines 100 --variants 2
+python -m train train \
+  --dataset runs/dataset01 --output runs/model01 \
   --iterations 1000 --learning-rate 0.0001
-.\.venv\Scripts\python.exe tamil_ocr.py evaluate `
-  --dataset runs\dataset01 --model runs\model01\tam_historical.traineddata `
-  --output runs\metrics01
+python -m train evaluate \
+  --dataset runs/dataset01 --model runs/model01/tam_historical.traineddata \
+  --output runs/metrics01
 ```
 
 Every image has a same-stem `.gt.txt` containing exactly one UTF-8 NFC text line.
 Typography changes the image, **not the Unicode label**.
 
 ```text
-dataset\
+dataset/
   manifest.json
   generation.json
   font_probe.json
   probe_korkai_historical.png
-  train\
+  train/
     <id>.png
     <id>.gt.txt
     <id>.box
     <id>.lstmf
-  val\
+  val/
     ...
-  test\
+  test/
     <id>.png
     <id>.gt.txt
 ```
 
 The native training stage uses standard whole-line LSTM boxes and the explicit
-[training config](configs/lstm.train). Training lists use LF, not Windows CRLF:
+[training config](train/lstm.train). Training lists use LF, not Windows CRLF:
 native `lstmtraining` otherwise includes the CR in the filename.
 
 The original model's full unicharset, recoder and dictionaries are retained. Only
@@ -220,7 +235,7 @@ transcriptions. Retain small hooks, pulli and vowel marks with sufficient margin
 Transcribe printed spelling, not modernized spelling; review uncertain lines.
 
 ```text
-real-book001\
+real-book001/
   p012_l003.png
   p012_l003.gt.txt
   p012_l004.tif
@@ -230,15 +245,15 @@ real-book001\
 Import one book/source at a time. The import directory is nonrecursive and supports
 `.png` or `.tif`, exactly one image for each `.gt.txt`.
 
-```powershell
-.\.venv\Scripts\python.exe tamil_ocr.py import-real `
-  --dataset runs\dataset01 --directory real-book001 `
+```bash
+python -m train import-real \
+  --dataset runs/dataset01 --directory real-book001 \
   --source-id book001 --split train
-.\.venv\Scripts\python.exe tamil_ocr.py import-real `
-  --dataset runs\dataset01 --directory real-book002 `
+python -m train import-real \
+  --dataset runs/dataset01 --directory real-book002 \
   --source-id book002 --split val
-.\.venv\Scripts\python.exe tamil_ocr.py import-real `
-  --dataset runs\dataset01 --directory real-book003 `
+python -m train import-real \
+  --dataset runs/dataset01 --directory real-book003 \
   --source-id book003 --split test
 ```
 
@@ -250,13 +265,13 @@ duplicates or keep them within a split rather than bypassing the check.
 
 Then train into a fresh output directory:
 
-```powershell
-.\.venv\Scripts\python.exe tamil_ocr.py train `
-  --dataset runs\dataset01 --output runs\model02 `
-  --base runs\model01\tam_historical.traineddata --iterations 5000
-.\.venv\Scripts\python.exe tamil_ocr.py evaluate `
-  --dataset runs\dataset01 --model runs\model02\tam_historical.traineddata `
-  --output runs\metrics02
+```bash
+python -m train train \
+  --dataset runs/dataset01 --output runs/model02 \
+  --base runs/model01/tam_historical.traineddata --iterations 5000
+python -m train evaluate \
+  --dataset runs/dataset01 --model runs/model02/tam_historical.traineddata \
+  --output runs/metrics02
 ```
 
 The baseline for evaluation remains the original downloaded `tam` unless you
@@ -272,7 +287,7 @@ The terminal prints baseline/fine-tuned:
 - Grapheme-cluster accuracy and exact-line accuracy.
 - `ai`, `nedil` and pulli reference-cluster accuracy with denominators.
 
-`evaluation\metrics.json` also contains per-font, per-category, real/synthetic,
+`evaluation/metrics.json` also contains per-font, per-category, real/synthetic,
 ordinary/diagnostic and real-source metrics, cluster-specific scores, confusion
 counts, model hashes and dataset-manifest hash. `predictions.json` stores every
 reference and hypothesis for inspection.
@@ -316,19 +331,19 @@ holdouts before adopting a model. Results can differ with assets and tool versio
 Committed releases live under `models\` (see [models/README.md](models/README.md)).
 For a step-by-step guide to running the latest committed model on new images, see
 [inference/README.md](inference/README.md). For example, the current smoke release
-is `models\approved-v1\tam_historical.traineddata` with its metadata in
-`models\approved-v1\manifest.json`.
+is `models/approved-v1/tam_historical.traineddata` with its metadata in
+`models/approved-v1/manifest.json`.
 
 The [inference package](inference/) can download the pinned model, select it
 explicitly, print Unicode Tamil, and save UTF-8 output:
 
-```powershell
+```bash
 python -m inference download
-$image = (Get-ChildItem runs\demo\dataset\test -Filter '*.png' | Select-Object -First 1).FullName
-python -m inference run --image $image --psm 7 --output runs\inference\demo-line.txt
+image=$(ls runs/demo/dataset/test/*.png | head -n 1)
+python -m inference run --image "$image" --psm 7 --output runs/inference/demo-line.txt
 ```
 
-`download` is optional when you already have `models\approved-v1\tam_historical.traineddata`.
+`download` is optional when you already have `models/approved-v1/tam_historical.traineddata`.
 Use `--model <path>` to select a different release. Choose a new output filename if
 it already exists. For page/block modes, Python API usage and real-data versioning,
 see the [detailed guide](docs/DATASET_TRAINING_INFERENCE.md) and the
@@ -336,8 +351,8 @@ see the [detailed guide](docs/DATASET_TRAINING_INFERENCE.md) and the
 
 No system model is overwritten. Point Tesseract to the release directory:
 
-```powershell
-tesseract line.png stdout --tessdata-dir models\approved-v1 -l tam_historical --oem 1 --psm 7
+```bash
+tesseract line.png stdout --tessdata-dir models/approved-v1 -l tam_historical --oem 1 --psm 7
 ```
 
 Use a suitable page segmentation mode for full-page input, and evaluate that
@@ -345,9 +360,9 @@ page-level pipeline separately.
 
 ## Tests
 
-```powershell
-.\.venv\Scripts\python.exe tamil_ocr.py setup
-.\.venv\Scripts\python.exe -m unittest discover -s tests -v
+```bash
+python -m train setup
+python -m unittest discover -s tests -v
 ```
 
 Tests cover Tamil metrics, normalization, empty predictions, subprocess failures,

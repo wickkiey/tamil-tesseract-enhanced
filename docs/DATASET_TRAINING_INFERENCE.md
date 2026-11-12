@@ -2,24 +2,24 @@
 
 This guide describes the implemented commands, their limitations, and a
 repeatable workflow for improving Tamil typography recognition over time.
-Run PowerShell commands from the project root, `D:\wickkiey_git\data-labelling`.
+Run all commands from the repository root.
 Adjust absolute paths if you move the project.
 
 ## 1. Understand the artifacts
 
 | Artifact | Purpose |
 |---|---|
-| [tamil_ocr.py](../tamil_ocr.py) | Asset setup, dataset generation, real-data import, training, evaluation |
+| [train](../train) | Pipeline package (one module per stage) and [config.toml](../train/config.toml) |
 | [inference/](../inference/) | Download the pinned model and run it on a new image |
-| [profiles.json](../profiles.json) | Fonts, OpenType features and typography categories |
-| `assets\fonts` | Downloaded fonts and licenses |
-| `assets\models\tam.traineddata` | Original floating-point Tamil baseline |
-| `assets\provenance.json` | Download URLs, licenses and hashes |
-| `runs\demo\dataset` | Original 180-pair smoke dataset |
-| `runs\demo\model\tam_historical.traineddata` | Exported smoke model, not a production-certified model |
-| `models\approved-v1` | Tracked, shareable release of the smoke model plus `manifest.json` |
-| `runs\demo\evaluation` | Original smoke metrics and predictions |
-| `runs\expanded\dataset` | 18,000 pairs; generated but not yet trained |
+| [profiles.json](../train/profiles.json) | Fonts, OpenType features and typography categories |
+| `assets/fonts` | Downloaded fonts and licenses |
+| `assets/models/tam.traineddata` | Original floating-point Tamil baseline |
+| `assets/provenance.json` | Download URLs, licenses and hashes |
+| `runs/demo/dataset` | Original 180-pair smoke dataset |
+| `runs/demo/model/tam_historical.traineddata` | Exported smoke model, not a production-certified model |
+| `models/approved-v1` | Tracked, shareable release of the smoke model plus `manifest.json` |
+| `runs/demo/evaluation` | Original smoke metrics and predictions |
+| `runs/expanded/dataset` | 18,000 pairs; generated but not yet trained |
 
 The local Git repository tracks source, tests, documentation and shareable model
 releases under `models\`. Assets, datasets, training checkpoints, logs and Python
@@ -29,9 +29,9 @@ to preserve an exact experiment.
 Tracked model releases use this layout:
 
 ```text
-models\
+models/
   README.md
-  approved-v1\
+  approved-v1/
     tam_historical.traineddata
     manifest.json
 ```
@@ -45,16 +45,15 @@ without checking for overlap.
 
 ## 2. Prepare the environment
 
-```powershell
-Set-Location 'D:\wickkiey_git\data-labelling'
+```bash
 python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt
-$env:Path = 'D:\Program Files\Tesseract-OCR;' + $env:Path
+# activate the virtual environment, then:
+python -m pip install -r requirements.txt
 
 tesseract --version
-Get-Command tesseract, combine_tessdata, lstmtraining, lstmeval
-.\.venv\Scripts\python.exe tamil_ocr.py setup
-.\.venv\Scripts\python.exe -m unittest discover -s tests -v
+for t in tesseract combine_tessdata lstmtraining lstmeval; do command -v "$t"; done
+python -m train setup
+python -m unittest discover -s tests -v
 ```
 
 Use Python 3.10+ and Tesseract 5 with training tools. Tamil generation requires
@@ -105,9 +104,9 @@ forms. Training generates whole-line `.box` and `.lstmf` files automatically.
 
 ### A. More images using the existing starter
 
-```powershell
-.\.venv\Scripts\python.exe tamil_ocr.py generate `
-  --dataset runs\synthetic-v2\dataset `
+```bash
+python -m train generate \
+  --dataset runs/synthetic-v2/dataset \
   --lines 1500 --variants 4 --seed 42
 ```
 
@@ -128,7 +127,7 @@ historical book.
 
 ### B. Add your own larger corpus
 
-Create a UTF-8 corpus such as `assets\corpora\tamil-v2.txt`, with one sentence or
+Create a UTF-8 corpus such as `assets/corpora/tamil-v2.txt`, with one sentence or
 printed line per line. Include licensed, representative material:
 
 - Everyday Tamil and historical vocabulary.
@@ -139,10 +138,10 @@ printed line per line. Include licensed, representative material:
 Blank corpus lines are skipped; normalized duplicate lines are deduplicated.
 Choose `--lines` no greater than the number of unique lines:
 
-```powershell
-.\.venv\Scripts\python.exe tamil_ocr.py generate `
-  --dataset runs\corpus-v2\dataset `
-  --corpus assets\corpora\tamil-v2.txt `
+```bash
+python -m train generate \
+  --dataset runs/corpus-v2/dataset \
+  --corpus assets/corpora/tamil-v2.txt \
   --lines 5000 --variants 3 --seed 42
 ```
 
@@ -155,7 +154,7 @@ whole paragraphs.
 ### C. Add another historical font
 
 Acquire a Unicode TTF/OTF font with permission to use it, store it under
-`assets\fonts`, and retain its license. Add a profile to [profiles.json](../profiles.json):
+`assets/fonts`, and retain its license. Add a profile to [profiles.json](../train/profiles.json):
 
 ```json
 {
@@ -203,9 +202,9 @@ Their scores are glyph stress tests, not independent language generalization.
 
 Create a working dataset version before modifying the existing one:
 
-```powershell
-New-Item -ItemType Directory -Path runs\mixed-v1
-Copy-Item -LiteralPath runs\expanded\dataset -Destination runs\mixed-v1\dataset -Recurse
+```bash
+New-Item -ItemType Directory -Path runs/mixed-v1
+Copy-Item -LiteralPath runs/expanded/dataset -Destination runs/mixed-v1/dataset -Recurse
 ```
 
 The copied manifest uses relative image paths, so it remains valid. Old generated
@@ -214,7 +213,7 @@ training files, if present, will be regenerated during training.
 Prepare one nonrecursive import folder per real book:
 
 ```text
-assets\real\book001\
+assets/real/book001/
   p012_l003.png
   p012_l003.gt.txt
   p012_l004.tif
@@ -228,22 +227,22 @@ pipeline.
 
 Import distinct books into distinct splits:
 
-```powershell
-.\.venv\Scripts\python.exe tamil_ocr.py import-real `
-  --dataset runs\mixed-v1\dataset --directory assets\real\book001 `
+```bash
+python -m train import-real \
+  --dataset runs/mixed-v1/dataset --directory assets/real/book001 \
   --source-id book001 --split train
 
-.\.venv\Scripts\python.exe tamil_ocr.py import-real `
-  --dataset runs\mixed-v1\dataset --directory assets\real\book002 `
+python -m train import-real \
+  --dataset runs/mixed-v1/dataset --directory assets/real/book002 \
   --source-id book002 --split val
 
-.\.venv\Scripts\python.exe tamil_ocr.py import-real `
-  --dataset runs\mixed-v1\dataset --directory assets\real\book003 `
+python -m train import-real \
+  --dataset runs/mixed-v1/dataset --directory assets/real/book003 \
   --source-id book003 --split test
 ```
 
 Keep every page of a source in the same split. Source IDs use letters, digits,
-hyphens or underscores. New pages of `book001` can later be imported into `train`
+hyphens or underscores. New pages of `book001` can later be imported into `train\
 from another folder; reuse the same source ID and unique page/line basenames.
 
 The manifest records source IDs and text/image hashes. Cross-split duplicate text
@@ -265,21 +264,21 @@ on validation. The current trainer has no real/synthetic weighting parameter.
 
 Train the expanded synthetic dataset from the original Tamil model:
 
-```powershell
-.\.venv\Scripts\python.exe tamil_ocr.py train `
-  --dataset runs\expanded\dataset `
-  --output runs\expanded\model `
-  --model-name tam_historical `
+```bash
+python -m train train \
+  --dataset runs/expanded/dataset \
+  --output runs/expanded/model \
+  --model-name tam_historical \
   --iterations 5000 --learning-rate 0.0001
 ```
 
 Or train your mixed dataset:
 
-```powershell
-.\.venv\Scripts\python.exe tamil_ocr.py train `
-  --dataset runs\mixed-v1\dataset `
-  --output runs\mixed-v1\model `
-  --model-name tam_historical_v1 `
+```bash
+python -m train train \
+  --dataset runs/mixed-v1/dataset \
+  --output runs/mixed-v1/model \
+  --model-name tam_historical_v1 \
   --iterations 5000 --learning-rate 0.0001
 ```
 
@@ -296,7 +295,7 @@ What happens:
 The runtime model for the mixed example is:
 
 ```text
-runs\mixed-v1\model\tam_historical_v1.traineddata
+runs/mixed-v1/model/tam_historical_v1.traineddata
 ```
 
 Also preserve `training.json`, `training.log`, checkpoint scores, dataset
@@ -311,11 +310,11 @@ Training runs synchronously and can take a long time on CPU.
 
 The default export remains floating-point and can be used as the next base:
 
-```powershell
-.\.venv\Scripts\python.exe tamil_ocr.py train `
-  --dataset runs\mixed-v2\dataset `
-  --output runs\mixed-v2\model `
-  --base runs\mixed-v1\model\tam_historical_v1.traineddata `
+```bash
+python -m train train \
+  --dataset runs/mixed-v2/dataset \
+  --output runs/mixed-v2/model \
+  --base runs/mixed-v1/model/tam_historical_v1.traineddata \
   --model-name tam_historical_v2 --iterations 5000
 ```
 
@@ -330,22 +329,22 @@ working model while experimenting.
 
 ## 7. Evaluate and read accuracy
 
-```powershell
-.\.venv\Scripts\python.exe tamil_ocr.py evaluate `
-  --dataset runs\mixed-v1\dataset `
-  --model runs\mixed-v1\model\tam_historical_v1.traineddata `
-  --output runs\mixed-v1\evaluation
+```bash
+python -m train evaluate \
+  --dataset runs/mixed-v1/dataset \
+  --model runs/mixed-v1/model/tam_historical_v1.traineddata \
+  --output runs/mixed-v1/evaluation
 ```
 
 The default baseline is the original downloaded `tam`. To compare against the
 previous custom model instead:
 
-```powershell
-.\.venv\Scripts\python.exe tamil_ocr.py evaluate `
-  --dataset runs\mixed-v2\dataset `
-  --base runs\mixed-v1\model\tam_historical_v1.traineddata `
-  --model runs\mixed-v2\model\tam_historical_v2.traineddata `
-  --output runs\mixed-v2\previous-model-comparison
+```bash
+python -m train evaluate \
+  --dataset runs/mixed-v2/dataset \
+  --base runs/mixed-v1/model/tam_historical_v1.traineddata \
+  --model runs/mixed-v2/model/tam_historical_v2.traineddata \
+  --output runs/mixed-v2/previous-model-comparison
 ```
 
 Use `--split val` for development comparisons; the default is `test`.
@@ -371,15 +370,18 @@ Outputs:
 - `predictions.json`: every reference and prediction for review.
 - `ocr.log`: commands and Tesseract diagnostics.
 
-Read the important groups using PowerShell:
+Read the important groups with Python:
 
-```powershell
-$metrics = Get-Content runs\mixed-v1\evaluation\metrics.json -Raw -Encoding UTF8 | ConvertFrom-Json
-$metrics.models.baseline.overall
-$metrics.models.finetuned.overall
-$metrics.models.finetuned.by_group.'kind:real'
-$metrics.models.finetuned.by_group.'category:modern'
-$metrics.models.finetuned.overall.target_accuracy
+```bash
+python - <<'EOF'
+import json
+m = json.load(open('runs/mixed-v1/evaluation/metrics.json', encoding='utf-8'))['models']
+print(m['baseline']['overall'])
+print(m['finetuned']['overall'])
+print(m['finetuned']['by_group'].get('kind:real'))
+print(m['finetuned']['by_group'].get('category:modern'))
+print(m['finetuned']['overall']['target_accuracy'])
+EOF
 ```
 
 Accept a model only if real historical accuracy improves and modern accuracy does
@@ -392,29 +394,29 @@ metric, not the same quantity as the reported Unicode CER.
 ### Single text line with the inference package
 
 The package is pinned to the currently approved release. Download and verify it
-first if `models\approved-v1\tam_historical.traineddata` is missing:
+first if `models/approved-v1/tam_historical.traineddata` is missing:
 
-```powershell
-.\.venv\Scripts\python.exe -m inference download
+```bash
+python -m inference download
 ```
 
 This example uses a generated test line:
 
-```powershell
-$image = (Get-ChildItem runs\demo\dataset\test -Filter '*.png' | Select-Object -First 1).FullName
-.\.venv\Scripts\python.exe -m inference run `
-  --image $image `
-  --psm 7 --output runs\inference\demo-line.txt
+```bash
+image=$(ls runs/demo/dataset/test/*.png | head -n 1)
+python -m inference run \
+  --image "$image" \
+  --psm 7 --output runs/inference/demo-line.txt
 ```
 
 For a real new line, replace `--image` and pass `--model` to select another
 release:
 
-```powershell
-.\.venv\Scripts\python.exe -m inference run `
-  --image assets\incoming\line001.png `
-  --model models\approved-v1\tam_historical.traineddata `
-  --psm 7 --output runs\inference\line001.txt
+```bash
+python -m inference run \
+  --image assets/incoming/line001.png \
+  --model models/approved-v1/tam_historical.traineddata \
+  --psm 7 --output runs/inference/line001.txt
 ```
 
 The command:
@@ -424,7 +426,7 @@ The command:
 - Runs LSTM inference with `--oem 1`.
 - Prints NFC Unicode text and optionally saves UTF-8 text with LF endings.
 - Preserves internal line breaks for blocks/pages.
-- Logs commands and diagnostics to `runs\inference.log` by default; use `--log`
+- Logs commands and diagnostics to `runs/inference.log` by default; use `--log\
   to change the path.
 - Refuses to overwrite existing output or use an input/model as a log.
 - Returns a nonzero exit code for missing inputs, OCR failure or empty output.
@@ -444,10 +446,10 @@ to the sensitivity of your documents.
 
 For a page:
 
-```powershell
-.\.venv\Scripts\python.exe -m inference run `
-  --image assets\incoming\page001.png `
-  --psm 3 --output runs\inference\page001.txt
+```bash
+python -m inference run \
+  --image assets/incoming/page001.png \
+  --psm 3 --output runs/inference/page001.txt
 ```
 
 The command does not deskew, crop, convert PDFs, correct spelling or detect
@@ -464,10 +466,10 @@ from pathlib import Path
 from inference import recognize
 
 text = recognize(
-    image=Path(r"assets\incoming\line001.png"),
-    model=Path(r"models\approved-v1\tam_historical.traineddata"),
+    image=Path(r"assets/incoming/line001.png"),
+    model=Path(r"models/approved-v1/tam_historical.traineddata"),
     psm=7,
-    log=Path(r"runs\inference\python-api.log"),
+    log=Path(r"runs/inference/python-api.log"),
 )
 print(text)
 ```
@@ -478,9 +480,9 @@ process per call. A batch application can iterate over images with this function
 
 ### Direct Tesseract equivalent
 
-```powershell
-tesseract assets\incoming\line001.png stdout `
-  --tessdata-dir models\approved-v1 `
+```bash
+tesseract assets/incoming/line001.png stdout \
+  --tessdata-dir models/approved-v1 \
   -l tam_historical --oem 1 --psm 7
 ```
 
@@ -499,18 +501,18 @@ licenses, `manifest.json` and training provenance with the model release.
 Current committed layout (see [models/README.md](../models/README.md)):
 
 ```text
-models\
+models/
   README.md
-  approved-v1\
+  approved-v1/
     tam_historical.traineddata
     manifest.json
-  candidate-v2\                (future)
+  candidate-v2/                (future)
     tam_historical_v2.traineddata
     manifest.json
 ```
 
 Select models explicitly by path. Keep the approved version available for
-rollback. Avoid changing the system's original Tamil model. Each `manifest.json`
+rollback. Avoid changing the system's original Tamil model. Each `manifest.json\
 tracks the model hash, dataset version, validation/test metrics, licenses and
 intended document families. For mixed English/Tamil, this script selects only one
 model; multilanguage inference requires the corresponding additional models and a
@@ -534,7 +536,7 @@ separately tested configuration.
 | Good synthetic score, poor real score | Add representative reviewed scans and source-separated real tests |
 | Modern text regresses | Retain modern examples, reduce adaptation strength, and compare validation |
 
-The trainer writes LF-only sample lists because native Windows `lstmtraining`
+The trainer writes LF-only sample lists because native Windows `lstmtraining\
 can interpret CRLF's CR as part of a filename. Avoid hand-rewriting those lists.
 
 ## 11. Recommended improvement cycle
