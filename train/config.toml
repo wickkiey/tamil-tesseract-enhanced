@@ -1,0 +1,52 @@
+# Single configuration file for the Tamil OCR training pipeline.
+#
+# Run any stage with:   python -m train <stage> [--config path/to/other.toml]
+#   stages: setup | generate | import-real | train | evaluate | run
+# Command-line flags (e.g. --lines 500) override the values below.
+# Relative paths are resolved against the repository root.
+
+[paths]
+assets_dir = "assets"                          # fonts + base model are downloaded here by `setup`
+profiles = "train/profiles.json"           # font profiles (font file, OpenType features, category)
+lstm_config = "train/lstm.train"           # Tesseract config used to create .lstmf files
+base_model = "assets/models/tam.traineddata"   # model that fine-tuning starts from / baseline for evaluation
+models_dir = "models"                          # accuracy results are saved to <models_dir>/<name>/
+
+[generate]
+dataset = "runs/default/dataset"   # output directory (must be new or empty)
+corpus = ""                        # UTF-8 file, one Tamil line per row; "" = built-in starter corpus
+lines = 100                        # unique corpus lines to use (>= 10, <= lines in the corpus)
+variants = 2                       # images per line per profile; 0 = clean, 1+ = rotated/blurred/noisy
+seed = 42
+font_sizes = [40, 48, 56]          # a size is picked at random (seeded) for each image
+
+[augment]                          # applied to variants >= 1
+rotation_deg = 0.6                 # random rotation in [-x, +x] degrees
+blur_min = 0.1                     # Gaussian blur radius range
+blur_max = 0.45
+
+[import_real]                      # add real scanned lines (image + .gt.txt pairs) to a dataset
+dataset = "runs/default/dataset"
+directory = ""                     # folder holding NAME.png|tif + NAME.gt.txt pairs
+source_id = ""                     # letters/digits/_/- ; one source must stay in a single split
+split = "train"                    # train | val | test
+
+[train]
+dataset = "runs/default/dataset"
+output = "runs/default/model"      # must be new or empty
+model_name = "tam_historical"
+iterations = 1000
+learning_rate = 0.0001
+target_error_rate = 0.01
+psm = 13                           # page segmentation mode used to build .lstmf files
+
+[evaluate]
+dataset = "runs/default/dataset"
+model = "runs/default/model/tam_historical.traineddata"
+output = "runs/default/evaluation" # must be new or empty
+split = "test"                     # val | test
+psm = 7
+name = ""                          # results go to models/<name>/ ; "" = the model file name (e.g. tam_historical)
+
+[run]                              # `run` = setup + generate + train + evaluate in one go
+output = "runs/default-run"        # holds dataset/, model/, evaluation/ (must be new or empty)
