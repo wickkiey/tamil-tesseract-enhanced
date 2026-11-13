@@ -162,10 +162,12 @@ word-list lines. It is original demonstration text, not a production language
 corpus; review grammar and replace it with representative, licensed text.
 The maximum built-in `--lines` is 1,731.
 
-One diagnostic line is reserved in each split to ensure `லை ளை ணை னை` and
-`ணா றா னா` occur even in a small smoke run. These reorder the same target words:
-their accuracy is a **glyph stress test**, not independent language generalization.
-Metrics separate diagnostic and ordinary text.
+One diagnostic line is reserved in each split, and each includes all 13 syllable
+examples from the old/new mapping chart: `ணா றா னா`, `ணை லை ளை னை`, and
+`ணொ றொ னொ ணோ றோ னோ`. Historical and modern font profiles render these same
+transcriptions with their configured glyph forms. Their accuracy is a **glyph
+stress test**, not independent language generalization. Metrics separate
+diagnostic and ordinary text.
 
 For your own UTF-8 corpus, provide one text line per line:
 

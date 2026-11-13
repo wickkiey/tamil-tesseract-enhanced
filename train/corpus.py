@@ -20,7 +20,8 @@ def starter_corpus() -> list[str]:
                "புதிய பாடலை பாடினார்", "கலை நிகழ்ச்சியை பார்த்தார்", "பணிகளை முடித்தார்",
                "கடிதத்தை எழுதினார்", "மணல் சிற்பத்தை பார்த்தார்", "விளக்கை ஏற்றினார்",
                "துணிகளை அடுக்கினார்", "எழுத்து வடிவங்களை ஆராய்ந்தார்", "மரங்களை நட்டார்")
-    return [f"{s} {a} {v}." for s in subjects for a in actors for v in actions]
+    sentences = [f"{s} {a} {v}." for s in subjects for a in actors for v in actions]
+    return sentences + list(DIAGNOSTICS)
 
 
 def load_corpus(corpus: Path | None) -> list[str]:

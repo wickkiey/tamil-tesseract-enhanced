@@ -60,6 +60,14 @@ class MetricsTests(unittest.TestCase):
         self.assertEqual(len(first), 20)
         self.assertEqual(set(first.values()), set(common.SPLITS))
 
+    def test_starter_diagnostics_cover_old_new_mapping_examples(self):
+        mappings = "ணா றா னா ணை லை ளை னை ணொ றொ னொ ணோ றோ னோ".split()
+        starter = corpus.starter_corpus()
+        self.assertTrue(set(common.DIAGNOSTICS).issubset(starter))
+        for text, split in zip(common.DIAGNOSTICS, common.SPLITS):
+            with self.subTest(split=split):
+                self.assertTrue(set(mappings).issubset(text.rstrip(".").split()))
+
     def test_diagnostic_coverage_assignment_preserves_split_sizes(self):
         texts = corpus.starter_corpus()[:7] + list(common.DIAGNOSTICS)
         assignments = corpus.split_texts(texts, 42)

@@ -97,6 +97,8 @@ def generate(dataset: Path, corpus: Path | None, profiles_path: Path, lines: int
     if dataset.exists() and any(dataset.iterdir()):
         raise ValueError(f"Output is nonempty; choose a new dataset directory: {dataset}")
     texts = sorted(set(load_corpus(corpus)))
+    if corpus is None:
+        texts = [text for text in texts if text not in DIAGNOSTICS]
     random.Random(seed).shuffle(texts)
     available = len(texts) + (len(DIAGNOSTICS) if corpus is None else 0)
     if lines > available:
@@ -143,7 +145,7 @@ def generate(dataset: Path, corpus: Path | None, profiles_path: Path, lines: int
                                                  split: {t: sum(text.count(t) for text in texts if assignments[text] == split)
                                                          for t in PROBES} for split in SPLITS},
                                              "diagnostic_lines": list(DIAGNOSTICS) if corpus is None else [],
-                                             "diagnostic_note": "Reordered word-list stress lines ensure ai/nedil coverage in each split."})
+                                             "diagnostic_note": "Each split contains the full old/new Tamil mapping example set."})
     load_manifest(dataset)
     print(f"Generated {len(samples)} line pairs: {dict(Counter(s.split for s in samples))}")
     print("Synthetic splits hold out text, not fonts. Real-book accuracy is not measured here.")
