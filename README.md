@@ -12,12 +12,13 @@ versus fine-tuned accuracy on an untouched test set.
 All pipeline code is in [`train/`](train/), with one module per stage and a single
 config file, [`train/config.toml`](train/config.toml). **See
 [train/README.md](train/README.md)** for a short run section for each stage: setup,
-generate data, import real data, train and evaluate.
+generate data, import real data, train, evaluate and the continuous improvement loop.
 
 ```bash
 python -m train generate     # reads train/config.toml
 python -m train train
 python -m train evaluate     # saves accuracy to models/<name>/
+python -m train improve      # labels + synthetic -> fine-tune -> accuracy loop
 ```
 
 Command-line flags override the config (`python -m train generate --lines 500`).
@@ -279,6 +280,37 @@ python -m train evaluate \
 The baseline for evaluation remains the original downloaded `tam` unless you
 explicitly override `--base`. Real and synthetic scores are reported separately.
 Do not edit imported files in place: their recorded hashes are validated.
+
+### Continuous labelling and fine-tuning
+
+`python -m train improve` runs the whole improvement cycle as one script: it copies
+the synthetic dataset, imports all current labels from `runs/labeled/dataset` (the
+Streamlit labeller output), fine-tunes from the previous iteration's model, and
+prints baseline (Tesseract) versus fine-tuned accuracy. It waits for new or edited
+labels, then repeats until the fine-tuned model beats Tesseract on the test split.
+
+```bash
+python -m train improve --once                 # one iteration now
+python -m train improve --margin 0.02          # require +2pp character accuracy
+python -m train.improve --labels runs/labeled/dataset
+```
+
+Every iteration writes `runs/improve/iter-NNN/{dataset,model,evaluation}` and
+appends baseline/fine-tuned metrics to `runs/improve/accuracy_history.json`.
+Re-running resumes from the last exported model. See
+[train/README.md](train/README.md#improve-continuous-labelling--fine-tuning) for
+the full option list.
+
+Then promote the best iteration and point the labeller at it:
+
+```bash
+python -m train promote        # -> runs/model/<best_model_name>/ + labeling_config.json
+```
+
+It ranks iterations by character accuracy (or `--metric cer`), copies the winner
+with its metrics/manifest, and switches Streamlit's default Tesseract model to it.
+Streamlit extraction now also shows word-level Tesseract confidences under each
+labelled line (green >= 90%, orange >= 70%, red below 70%).
 
 ## Accuracy reports
 

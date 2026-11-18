@@ -11,6 +11,8 @@ repository root as `python -m train <stage>`.
 | 3. [Import real data](#3-import-real-data-optional) | `python -m train import-real` | Add real scanned lines (optional) |
 | 4. [Train](#4-train) | `python -m train train` | Fine-tune the base model |
 | 5. [Evaluate](#5-evaluate) | `python -m train evaluate` | Measure accuracy and save it to `models/<name>/` |
+| 6. [Improve](#improve-continuous-labelling--fine-tuning) | `python -m train improve` | Loop: labels + synthetic data, fine-tune, compare accuracy |
+| 7. [Promote](#promote-best-model) | `python -m train promote` | Release the best iteration and point the labeller at it |
 | All | `python -m train run` | Stages 1, 2, 4 and 5 in one go |
 
 ## Configuration
@@ -34,6 +36,8 @@ needs Python 3.11 or later.
 | `[import_real]` | `dataset`, `directory`, `source_id`, `split` |
 | `[train]` | `dataset`, `output`, `model_name`, `iterations`, `learning_rate`, `target_error_rate`, `psm` |
 | `[evaluate]` | `dataset`, `model`, `output`, `split`, `psm`, `name` |
+| `[improve]` | `synthetic_dataset`, `labels`, `real_test_labels`, `output`, `source_id`, `real_test_source_id`, `base`, `model_name`, `iterations`, `learning_rate`, `split`, `margin`, `max_iterations`, `wait_seconds`, `timeout` |
+| `[promote]` | `output`, `history`, `metric`, `labeling_config` |
 | `[run]` | `output` |
 
 ## Requirements
@@ -57,6 +61,8 @@ must be built with RAQM/HarfBuzz so Tamil shaping works.
 | `corpus.py`, `profiles.py`, `dataset.py` | Stages 2 and 3 |
 | `training.py` | Stage 4 |
 | `evaluation.py` | Stage 5 |
+| `improve.py` | Stage 6: continuous labelling/fine-tuning loop |
+| `promote.py` | Stage 7: promote the best iteration model |
 | `cli.py`, `config.py`, `common.py` | Argument parsing, config loading, shared helpers |
 
 ---
@@ -152,6 +158,49 @@ Re-evaluating with the same name overwrites that folder's `accuracy.json` and
 
 Synthetic-only results do not prove accuracy on real historical scans. Import real
 held-out pages (stage 3) before relying on a model.
+
+## Improve: continuous labelling + fine-tuning
+
+```bash
+python -m train improve
+python -m train improve --once --max-iterations 1 --labels runs/labeled/dataset
+python -m train.improve --once
+```
+
+Each iteration copies the clean synthetic dataset, imports the current labelled
+`.png`/`.tif` + `.gt.txt` pairs (and optional held-out `real_test_labels` into the
+test split), fine-tunes from the previous model, and evaluates the original
+Tesseract model against the fine-tuned model on the configured split. Baseline and
+fine-tuned CER/WER/character accuracy/grapheme accuracy/exact-line accuracy are
+printed in the training output, and every iteration is appended to
+`accuracy_history.json`. The loop waits for new or edited labels between iterations
+and stops when fine-tuned accuracy exceeds Tesseract baseline accuracy by `margin`
+(or after `max_iterations`). Re-running resumes with the last exported model.
+
+```text
+runs/improve/
+  accuracy_history.json
+  iter-001/dataset, model/, evaluation/metrics.json
+  iter-002/...
+```
+
+Evaluation uses the untouched test split by default; point `real_test_labels` at a
+separate folder of held-out real lines to measure accuracy on scans.
+
+## Promote best model
+
+```bash
+python -m train promote
+python -m train promote --metric cer --split test --force
+python -m train promote --no-update-config --output runs/releases
+```
+
+Reads `runs/improve/accuracy_history.json`, picks the iteration with the best
+metric (higher accuracy or lower error), and copies it to
+`runs/model/<model_name>/` with `accuracy.json`, `metrics.json` and `manifest.json`.
+It also sets `tesseract_models.finetuned` and `default_tesseract_model` in
+`labeling_config.json`, so the Streamlit labeller immediately uses that model.
+`--force` overwrites an existing release; `--no-update-config` skips the labeller edit.
 
 ## Run everything
 

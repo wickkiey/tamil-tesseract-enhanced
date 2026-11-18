@@ -554,3 +554,41 @@ can interpret CRLF's CR as part of a filename. Avoid hand-rewriting those lists.
 There is no universal guaranteed accuracy threshold. Define acceptable historical
 CER, target-cluster accuracy, modern regression, and page-level behavior for your
 actual documents before adopting a model.
+
+## 12. Automated improvement loop
+
+`python -m train improve` automates the cycle above. Configure it under `[improve]`
+in `train/config.toml`:
+
+```bash
+python -m train improve                 # wait for labels and keep fine-tuning
+python -m train improve --once          # single iteration, no waiting
+python -m train improve --margin 0.02 --max-iterations 5 --wait-seconds 120
+python -m train.improve --labels runs/labeled/dataset
+```
+
+Each iteration:
+
+1. Copies `synthetic_dataset` into a fresh `output/iter-NNN/dataset`.
+2. Imports all current `*.png`/`*.tif` + `*.gt.txt` pairs from `labels` into the
+   train split (and optional `real_test_labels` into the test split).
+3. Fine-tunes from the previous iteration's exported model; the first iteration
+   starts from `base` or the original Tesseract `paths.base_model`.
+4. Evaluates the original Tesseract model and the fine-tuned model on `split`,
+   printing CER, WER, character accuracy, grapheme accuracy and exact-line accuracy
+   in the training output.
+5. Appends the comparison to `output/accuracy_history.json` and stops when
+   fine-tuned accuracy exceeds baseline accuracy by `margin` (or after
+   `max_iterations`; `0` means keep looping while labels keep arriving).
+
+New or edited label pairs trigger the next iteration; the script polls every
+`wait_seconds` until `timeout` (`0` = indefinitely). Re-running resumes with the
+last model and last known label fingerprints. Use a separate
+`real_test_labels` folder with held-out scans if you want this pass/fail check to
+measure real-book accuracy rather than synthetic test accuracy.
+
+After a run, `python -m train promote` reads `accuracy_history.json`, copies the
+best-scoring iteration (highest accuracy or lowest error, selectable with
+`--metric`) into `runs/model/<model_name>/` with `accuracy.json`, `metrics.json`
+and `manifest.json`, and updates `labeling_config.json` so Streamlit defaults to
+that model. Use `--no-update-config` to leave the labeller untouched.

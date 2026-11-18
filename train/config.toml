@@ -1,7 +1,7 @@
 # Single configuration file for the Tamil OCR training pipeline.
 #
 # Run any stage with:   python -m train <stage> [--config path/to/other.toml]
-#   stages: setup | generate | import-real | train | evaluate | run
+#   stages: setup | generate | import-real | train | evaluate | improve | promote | run
 # Command-line flags (e.g. --lines 500) override the values below.
 # Relative paths are resolved against the repository root.
 
@@ -47,6 +47,29 @@ output = "runs/default/evaluation" # must be new or empty
 split = "test"                     # val | test
 psm = 7
 name = ""                          # results go to models/<name>/ ; "" = the model file name (e.g. tam_historical)
+
+[improve]                          # continuous labels + synthetic -> fine-tune -> accuracy loop
+synthetic_dataset = "runs/default/dataset"  # clean synthetic dataset copied for every iteration
+labels = "runs/labeled/dataset"    # Streamlit labelling output: NAME.png|tif + NAME.gt.txt
+real_test_labels = ""              # optional held-out real lines, imported into the test split
+output = "runs/improve"            # holds iter-001/dataset,model,evaluation and accuracy_history.json
+source_id = "labels"               # source for training labels; keep in the train split
+real_test_source_id = "labels_test"  # source for held-out real test labels
+base = ""                          # "" = start from paths.base_model; next iterations use the last model
+model_name = "tam_historical"      # exported as <model_name>_iterNNN.traineddata
+iterations = 1000
+learning_rate = 0.0001
+split = "test"                     # split used for the baseline vs fine-tuned accuracy report
+margin = 0.0                       # stop only when fine-tuned accuracy > baseline + margin
+max_iterations = 10                # 0 = keep looping while new labels arrive
+wait_seconds = 60                  # poll interval for new or edited labels between iterations
+timeout = 0                        # seconds to wait for new labels; 0 = wait indefinitely
+
+[promote]                          # pick the best iteration and point the labeller at it
+output = "runs/model"              # best model copied to <output>/<model_name>/
+history = ""                       # "" = <improve.output>/accuracy_history.json
+metric = "character_accuracy"      # metric used to rank iterations
+labeling_config = "labeling_config.json"
 
 [run]                              # `run` = setup + generate + train + evaluate in one go
 output = "runs/default-run"        # holds dataset/, model/, evaluation/ (must be new or empty)

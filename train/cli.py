@@ -10,6 +10,8 @@ import zipfile
 from .config import DEFAULT_CONFIG, Config
 from .dataset import generate, import_real
 from .evaluation import evaluate
+from .improve import improve
+from .promote import promote
 from .setup_assets import setup
 from .training import train
 
@@ -53,6 +55,32 @@ def parser() -> argparse.ArgumentParser:
     imp.add_argument("--directory", type=Path)
     imp.add_argument("--source-id")
     imp.add_argument("--split", choices=("train", "val", "test"))
+    loop = sub.add_parser("improve", help="Loop: import labels, fine-tune, compare baseline and fine-tuned accuracy")
+    loop.add_argument("--synthetic-dataset", type=Path)
+    loop.add_argument("--labels", type=Path)
+    loop.add_argument("--real-test-labels", type=Path)
+    loop.add_argument("--output", type=Path)
+    loop.add_argument("--source-id")
+    loop.add_argument("--real-test-source-id")
+    loop.add_argument("--base", type=Path)
+    loop.add_argument("--model-name")
+    loop.add_argument("--iterations", type=int)
+    loop.add_argument("--learning-rate", type=float)
+    loop.add_argument("--split", choices=("val", "test"))
+    loop.add_argument("--margin", type=float)
+    loop.add_argument("--max-iterations", type=int)
+    loop.add_argument("--wait-seconds", type=float)
+    loop.add_argument("--timeout", type=float)
+    loop.add_argument("--once", action="store_true", help="Run one iteration and return without waiting for labels")
+    prom = sub.add_parser("promote", help="Copy the best iteration model to a release folder and point the labeller at it")
+    prom.add_argument("--history", type=Path)
+    prom.add_argument("--output", type=Path)
+    prom.add_argument("--metric", choices=("cer", "wer", "grapheme_error_rate", "character_accuracy",
+                                           "grapheme_accuracy", "exact_line_accuracy"))
+    prom.add_argument("--split", choices=("val", "test"))
+    prom.add_argument("--labeling-config", type=Path)
+    prom.add_argument("--force", action="store_true", help="Overwrite an existing release folder")
+    prom.add_argument("--no-update-config", action="store_true", help="Do not update labeling_config.json")
     return cli
 
 
@@ -106,8 +134,12 @@ def main(argv: list[str] | None = None) -> int:
                      cfg.path("evaluate", "output", args.output),
                      cfg.get("evaluate", "split", args.split),
                      psm=int(cfg.get("evaluate", "psm")),
-                     release_dir=_release_dir(cfg, cfg.get("evaluate", "name", args.name)
-                                              or cfg.path("evaluate", "model", args.model).stem))
+                      release_dir=_release_dir(cfg, cfg.get("evaluate", "name", args.name)
+                                               or cfg.path("evaluate", "model", args.model).stem))
+        elif args.command == "improve":
+            improve(cfg, args)
+        elif args.command == "promote":
+            promote(cfg, args)
         elif args.command == "run":
             output = cfg.path("run", "output", args.output)
             if output.exists() and any(output.iterdir()):

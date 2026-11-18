@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 import copy
 import hashlib
+import html
 import io
 import json
 import os
@@ -21,8 +22,30 @@ from PIL import Image
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from split_lines import extract_lines
+from ocr_confidence import tesseract_words
 
 st.set_page_config(page_title="PDF line labeler", layout="wide")
+
+st.markdown(
+    """
+    <style>
+    @media (min-width: 768px) {
+        div[data-testid="stHorizontalBlock"]:has(.st-key-page_image_sticky) > div[data-testid="stColumn"]:first-child {
+            position: sticky;
+            top: 4rem;
+            align-self: flex-start;
+            height: fit-content;
+        }
+        .st-key-page_image_sticky {
+            max-height: calc(100vh - 5rem);
+            overflow: auto;
+            z-index: 1;
+        }
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 
 ROOT = Path(__file__).resolve().parent
 _TESS_CANDIDATES = [
@@ -92,13 +115,14 @@ def reset(ss) -> None:
     ss.processed = {}
     ss.next_version = 0
     ss.texts = {}
+    ss.extractions = {}
 
 
 def remember(page: int, version: int, index: int, key: str) -> None:
     st.session_state.texts[(page, version, index)] = st.session_state.get(key, "")
 
 
-def ocr_with_tesseract(image: Image.Image, model_path: str) -> str:
+def ocr_with_tesseract(image: Image.Image, model_path: str) -> tuple[str, list[tuple[str, float]]]:
     model = Path(model_path)
     if not model.is_file():
         raise FileNotFoundError(f"Tesseract model not found: {model}")
@@ -115,7 +139,12 @@ def ocr_with_tesseract(image: Image.Image, model_path: str) -> str:
         )
     if result.returncode != 0:
         raise RuntimeError(result.stderr.strip() or "tesseract failed")
-    return result.stdout.strip()
+    words: list[tuple[str, float]] = []
+    try:
+        words = tesseract_words(image, model_path)
+    except (OSError, RuntimeError, ValueError):
+        words = []
+    return result.stdout.strip(), words
 
 
 def ocr_with_ollama(image: Image.Image, model: str, url: str) -> str:
@@ -164,15 +193,17 @@ def ocr_with_easyocr(image: Image.Image, languages: list[str]) -> str:
     return " ".join(results).strip()
 
 
-def extract_line(page: int, version: int, index: int, key: str, method: str, model_path: str | None = None) -> None:
+def extract_line(page: int, version: int, index: int, key: str, method: str,
+                 model_path: str | None = None, label: str = "Tesseract") -> None:
     info = st.session_state.processed.get(page)
     if not info or info["version"] != version or index >= len(info["lines"]):
         return
     image = info["lines"][index]
+    words: list[tuple[str, float]] = []
     try:
         if method == "tesseract":
             model = model_path or str(DEFAULT_TESSERACT)
-            text = ocr_with_tesseract(image, model)
+            text, words = ocr_with_tesseract(image, model)
         elif method == "ollama":
             model = st.session_state.get("ollama_model", "qwen3-vl:8b")
             url = st.session_state.get("ollama_url", "http://localhost:11434")
@@ -195,6 +226,8 @@ def extract_line(page: int, version: int, index: int, key: str, method: str, mod
         st.session_state["extract_error"] = f"{method} returned empty text."
         return
     st.session_state.texts[(page, version, index)] = text
+    st.session_state.setdefault("extractions", {})[(page, version, index)] = {
+        "label": label, "words": words}
     st.session_state[key] = text
     st.session_state["extract_error"] = ""
 
@@ -301,7 +334,8 @@ page_image = render_page(pdf_bytes, page, dpi)
 left_col, right_col = st.columns([1, 2], gap="large")
 
 with left_col:
-    st.image(page_image, caption=f"Page {ss.page}", width="stretch")
+    with st.container(key="page_image_sticky"):
+        st.image(page_image, caption=f"Page {ss.page}", width="stretch")
 
 with right_col:
     process_col, clear_col = st.columns(2)
@@ -349,6 +383,14 @@ with right_col:
                     on_change=remember,
                     args=(page, version, i, widget_key),
                 )
+                extraction = ss.get("extractions", {}).get((page, version, i))
+                if extraction and extraction.get("words"):
+                    st.caption(f"{extraction['label']} word confidence:")
+                    parts = []
+                    for word, confidence in extraction["words"]:
+                        color = "#1b7837" if confidence >= 90 else "#b36b00" if confidence >= 70 else "#b2182b"
+                        parts.append(f"<span style='color:{color}'>{html.escape(word)} ({confidence:.0f}%)</span>")
+                    st.markdown(" · ".join(parts), unsafe_allow_html=True)
                 buttons = [(label, "tesseract", path) for label, path in tesseract_buttons]
                 for row_start in range(0, len(buttons), 3):
                     row = buttons[row_start:row_start + 3]
@@ -360,7 +402,7 @@ with right_col:
                                 key=f"ext_{page}_{version}_{i}_{row_start + offset}",
                                 width="stretch",
                                 on_click=extract_line,
-                                args=(page, version, i, widget_key, method, model_path),
+                                args=(page, version, i, widget_key, method, model_path, label),
                             )
             st.divider()
     else:

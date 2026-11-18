@@ -43,6 +43,7 @@ class MetricsTests(unittest.TestCase):
     def test_normalization_and_controls(self):
         self.assertEqual(common.normalized(" கொ \n"), "கொ")
         self.assertEqual(common.normalized("கொ"), "கொ")
+        self.assertEqual(common.normalized("கொ\u200c"), "கொ")
         for text in ("", "a\nb", "a\tb", "a\u200bb"):
             with self.assertRaises(ValueError):
                 common.normalized(text)

@@ -33,8 +33,11 @@ def digest(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
+ZERO_WIDTH_NON_JOINER = "\u200c"
+
+
 def normalized(text: str) -> str:
-    text = unicodedata.normalize("NFC", text.strip())
+    text = unicodedata.normalize("NFC", text.replace(ZERO_WIDTH_NON_JOINER, "").strip())
     if not text or any(unicodedata.category(c).startswith("C") for c in text):
         raise ValueError("Transcription must be a nonempty single line without control characters.")
     return text
