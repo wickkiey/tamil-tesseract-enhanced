@@ -1,0 +1,8 @@
+{
+  "tesseract_models": {
+    "tesseract": "assets/models/tam.traineddata",
+    "finetuned": "runs/default/model/tam_historical.traineddata"
+  },
+  "default_tesseract_model": "finetuned",
+  "output_dir": "runs/labeled/dataset"
+}
